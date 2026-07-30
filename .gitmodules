@@ -1,0 +1,6 @@
+[submodule "bec-backend"]
+	path = bec-backend
+	url = git@github.com:rolandkia/bec-backend.git
+[submodule "bec-frontend"]
+	path = bec-frontend
+	url = git@github.com:rolandkia/bec-frontend.git
