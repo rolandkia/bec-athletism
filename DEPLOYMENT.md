@@ -197,7 +197,17 @@ Il n'efface **rien** : il crée les tables absentes et n'insère que ce qui manq
 donc le relancer est sans risque. Ce n'était pas le cas avant septembre 2026 : combiné à
 `drop_db.py`, qui oubliait les tables `coachs` et `evenements`, chaque relance ajoutait
 une copie du bureau, de l'encadrement et du calendrier — la VM en avait trois.
-(nécessite que les photos des coachs soient accessibles au chemin absolu `/bec-pictures/photo_profile/*.png` dans le container — voir volume temporaire ci-dessous si besoin de les re-uploader vers Cloudinary)
+Un membre dont la photo est introuvable (`bec-pictures/photo_profile/*.png`, dossier non
+versionné, absent de l'image Docker) est inséré sans photo, avec un avertissement : le site
+affiche ses initiales. Avant septembre 2026, le seed plantait sur le premier membre.
+
+Articles d'exemple du Mag (trois faux articles illustrés avec les photos du site) : à part
+d'`init_db.py`, pour qu'un article retiré ne revienne pas à la relance suivante. Les retirer
+avant d'annoncer le site — `--remove` ne touche qu'à ces trois slugs :
+```bash
+docker compose exec -e PYTHONPATH=. backend uv run python src/scripts/seed_articles.py
+docker compose exec -e PYTHONPATH=. backend uv run python src/scripts/seed_articles.py --remove
+```
 
 Supprimer les doublons de l'équipe et du calendrier (aperçu d'abord, `--apply` pour
 supprimer ; garde la copie la plus récente et détruit les photos Cloudinary devenues
