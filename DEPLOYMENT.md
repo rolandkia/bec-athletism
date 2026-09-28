@@ -188,11 +188,24 @@ docker compose logs backend --tail=100
 docker compose logs frontend --tail=100
 ```
 
-Initialiser le schéma + données de seed (⚠️ **supprime et recrée `bec.db`** — à ne lancer qu'une fois, jamais une fois qu'il y a des vraies données en prod) :
+Initialiser le schéma + données de seed :
 ```bash
 docker compose exec -e PYTHONPATH=. backend uv run python src/scripts/init_db.py
 ```
+Il n'efface **rien** : il crée les tables absentes et n'insère que ce qui manque
+(athlète par `ffa_id`, membre de l'équipe par prénom + nom, évènement par nom + date),
+donc le relancer est sans risque. Ce n'était pas le cas avant septembre 2026 : combiné à
+`drop_db.py`, qui oubliait les tables `coachs` et `evenements`, chaque relance ajoutait
+une copie du bureau, de l'encadrement et du calendrier — la VM en avait trois.
 (nécessite que les photos des coachs soient accessibles au chemin absolu `/bec-pictures/photo_profile/*.png` dans le container — voir volume temporaire ci-dessous si besoin de les re-uploader vers Cloudinary)
+
+Supprimer les doublons de l'équipe et du calendrier (aperçu d'abord, `--apply` pour
+supprimer ; garde la copie la plus récente et détruit les photos Cloudinary devenues
+orphelines) :
+```bash
+docker compose exec -e PYTHONPATH=. backend uv run python src/scripts/dedupe_seed.py
+docker compose exec -e PYTHONPATH=. backend uv run python src/scripts/dedupe_seed.py --apply
+```
 
 Synchroniser les résultats FFA des athlètes déjà en base (safe à relancer autant de fois que voulu) :
 ```bash
@@ -263,6 +276,14 @@ arbitrages ci-dessous :
   son `Cache-Control` fait échouer la CI, car rien dans l'interface ne le signalerait.
 - **Préchargement des pages au survol** (`bec-frontend/src/lib/prefetch.ts`), volontairement
   différé après l'évènement `load` et désactivé si le navigateur annonce `saveData` ou de la 2G.
+- **Photo d'ouverture demandée dès l'analyse du HTML, sur chaque page** (script de
+  `bec-frontend/index.html`, table écrite au build par `landingHeroPreload` dans `vite.config.ts`
+  depuis `src/data/pageHeroes.ts`). Avant, seul l'accueil en profitait : ailleurs la photo
+  attendait le JavaScript PUIS le morceau de la page. Mesuré sur Pixel 7 avec 110 ms de latence :
+  LCP de `/club`, `/athletes`, `/competitions`, `/mag`, `/rejoindre` de ~0,9-1,0 s à ~0,75 s. Les
+  photos des vues suivantes (bandeau qui alterne, onglets de `/athletes`) sont préchargées après
+  le chargement, dans la variante que la page affichera (`warmSitePhoto`) — elles partaient
+  auparavant en ORIGINAL, en même temps que la photo du bandeau, et étaient téléchargées deux fois.
 
 ### Hygiène de la VM (à refaire si la VM est recréée)
 
